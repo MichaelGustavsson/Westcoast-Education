@@ -22,42 +22,31 @@ namespace westcoast_education.api.Controllers
         {
             var result = await _context.Courses
             .Include(i => i.Teacher)
-            .Select(c => new CoursesViewModel
-            {
-                CourseId = c.CourseId,
-                Title = c.Title,
-                CourseNumber = c.CourseNumber,
-                StartDate = c.StartDate,
-                EndDate = c.EndDate,
-                Teacher = new TeacherViewModel
-                {
-                    Id = c.Teacher.Id,
-                    BirthOfDate = c.Teacher.BirthOfDate.ToShortDateString(),
-                    FirstName = c.Teacher.FirstName,
-                    LastName = c.Teacher.LastName,
-                    Email = c.Teacher.Email,
-                    Phone = c.Teacher.Phone,
-                    Address = c.Teacher.Address,
-                    PostalCode = c.Teacher.PostalCode,
-                    City = c.Teacher.City,
-                    Country = c.Teacher.Country
-                },
-                Students = c.Students.Select(s => new StudentViewModel
-                {
-                    Id = s.Id,
-                    BirthOfDate = s.BirthOfDate.ToShortDateString(),
-                    FirstName = s.FirstName,
-                    LastName = s.LastName,
-                    Email = s.Email,
-                    Phone = s.Phone,
-                    Address = s.Address,
-                    PostalCode = s.PostalCode,
-                    City = s.City,
-                    Country = s.Country
-                }).ToList()
-            })
+            .Include(s => s.Students)
             .ToListAsync();
-            return Ok(result);
+
+            var courses = new List<CoursesViewModel>();
+
+            foreach (var item in result)
+            {
+                courses.Add(MapCourseToViewModel(item));
+            }
+
+            return Ok(courses);
+        }
+
+        [HttpGet("{courseId}", Name = "GetCourse")]
+        public async Task<ActionResult> GetCourse(Guid courseId)
+        {
+            var result = await _context.Courses.Include(c => c.Teacher).Include(s => s.Students).SingleOrDefaultAsync(c => c.CourseId == courseId);
+
+            if (result is null) return BadRequest("Kunde inte hitta kursen");
+            else
+            {
+                CoursesViewModel course = MapCourseToViewModel(result);
+
+                return Ok(course);
+            }
         }
 
         // Lägg till en ny kurs...
@@ -78,7 +67,7 @@ namespace westcoast_education.api.Controllers
 
             if (await _context.SaveChangesAsync() > 0)
             {
-                return StatusCode(201);
+                return CreatedAtAction("GetCourse", new { courseId = course.CourseId }, MapCourseToViewModel(course));
             }
 
             return StatusCode(500, "Internal Server Error");
@@ -108,6 +97,54 @@ namespace westcoast_education.api.Controllers
             }
 
             return StatusCode(500, "Internal Server Error");
+        }
+
+        private CoursesViewModel MapCourseToViewModel(CourseModel result)
+        {
+            var course = new CoursesViewModel
+            {
+                CourseId = result.CourseId,
+                Title = result.Title,
+                CourseNumber = result.CourseNumber,
+                StartDate = result.StartDate,
+                EndDate = result.EndDate
+            };
+
+            if (result.Teacher is not null)
+            {
+                course.Teacher = new TeacherViewModel
+                {
+                    Id = result.Teacher.Id,
+                    BirthOfDate = result.Teacher.BirthOfDate.ToShortDateString(),
+                    FirstName = result.Teacher.FirstName,
+                    LastName = result.Teacher.LastName,
+                    Email = result.Teacher.Email,
+                    Phone = result.Teacher.Phone,
+                    Address = result.Teacher.Address,
+                    PostalCode = result.Teacher.PostalCode,
+                    City = result.Teacher.City,
+                    Country = result.Teacher.Country
+                };
+            }
+
+            if (result.Students is not null)
+            {
+                course.Students = result.Students.Select(s => new StudentViewModel
+                {
+                    Id = s.Id,
+                    BirthOfDate = s.BirthOfDate.ToShortDateString(),
+                    FirstName = s.FirstName,
+                    LastName = s.LastName,
+                    Email = s.Email,
+                    Phone = s.Phone,
+                    Address = s.Address,
+                    PostalCode = s.PostalCode,
+                    City = s.City,
+                    Country = s.Country
+                }).ToList();
+            }
+
+            return course;
         }
     }
 }

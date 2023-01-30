@@ -20,7 +20,7 @@ namespace westcoast_education.api.Controllers
         public async Task<ActionResult> ListTeachers()
         {
             var result = await _context.Teachers
-            .Select(c => new StudentViewModel
+            .Select(c => new TeacherViewModel
             {
                 Id = c.Id,
                 BirthOfDate = c.BirthOfDate.ToShortDateString(),
@@ -37,6 +37,14 @@ namespace westcoast_education.api.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{id}", Name = "GetTeacher")]
+        public async Task<ActionResult> GetTeacher(Guid id)
+        {
+            var result = await _context.Teachers.FindAsync(id);
+            TeacherViewModel teacher = MapTeacherToViewModel(result);
+
+            return Ok(teacher);
+        }
 
         [HttpPost()]
         public async Task<ActionResult> AddTeacher(AddPersonViewModel model)
@@ -60,10 +68,27 @@ namespace westcoast_education.api.Controllers
 
             if (await _context.SaveChangesAsync() > 0)
             {
-                return StatusCode(201, teacher);
+                return CreatedAtRoute("GetTeacher", new { id = teacher.Id }, MapTeacherToViewModel(teacher));
             }
 
             return StatusCode(500, "Internal Server Error");
+        }
+
+        private TeacherViewModel MapTeacherToViewModel(TeacherModel result)
+        {
+            return new TeacherViewModel
+            {
+                Id = result.Id,
+                BirthOfDate = result.BirthOfDate.ToShortDateString(),
+                FirstName = result.FirstName,
+                LastName = result.LastName,
+                Email = result.Email,
+                Phone = result.Phone,
+                Address = result.Address,
+                PostalCode = result.PostalCode,
+                City = result.City,
+                Country = result.Country
+            };
         }
     }
 }
